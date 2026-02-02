@@ -1,0 +1,3 @@
+The discrepancy is due to locale-dependent currency formatting. When the locale’s default currency matches the user-configured currency, Java renders the symbol; otherwise, it falls back to the currency code, which leads to inconsistent display (e.g., $, €, EUR, AUD).
+Additionally, fare, refundable, and exchangeable amounts already use the user-configured currency from the backend, so the UI behavior is inconsistent today.
+To make this consistent, we can avoid locale-based currency formatting here and always display the user-configured currency code from their profile. This would remove ambiguity and align all amounts across the product.
