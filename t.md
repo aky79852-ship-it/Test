@@ -1,126 +1,68 @@
+5. Open Questions & Decisions Needed (Product / Analytics Review)
 
-light Shopping Next-Gen UI — A/A → A/B Experiment Setup (Agencia)
-1. Purpose
+This section captures items identified during analysis and requires confirmation before final experiment configuration.
 
-To enable controlled rollout of the Next-Gen Flight Shopping UI using the experimentation platform, replacing the current preview-based enablement (~6% traffic) with a statistically valid A/A followed by A/B experiment.
+Q1. Company ID / GPID Exclusions
 
-This document defines:
+Observation: Some GPIDs / Company IDs are not currently present in the standard A/B exclusion list.
 
-Eligibility rules
+Question: Should these be explicitly added to this experiment’s exclusion list?
 
-Exclusion rules
+Recommendation: Yes — create a dedicated exclusion list scoped to this experiment to avoid unintended exposure and allow independent control.
 
-A/A and A/B setup
+Q2. Should This Experiment Use a New Config?
 
-Operational guardrails
+Observation: Existing preview and rollout configs are shared across multiple surfaces.
 
-2. Eligibility Criteria (Who Can Enter the Experiment)
+Question: Should this experiment use a new, isolated configuration?
 
-A request is eligible for experiment evaluation only if all of the following are true:
+Recommendation: Yes — create a new experiment config to allow independent ramping, rollback, and analytics isolation.
 
-Rule	Condition
-E1	POS ∈ {US, CA}
-E2	User Type ∈ {Agent, TC, Traveler}
-E3	Channel = Online shopping
-E4	Not part of another active flight shopping experiment
-E5	Request originates from supported web surfaces only
-3. Exclusion Criteria (Hard Blocks)
+Q3. Traveler ID (TUID) Not Eligible When Preview Is Enabled
 
-Requests will be force-routed to Legacy UI if any of the following are true:
+Observation: Current logic excludes TUID-based users when preview is enabled.
 
-Rule	Condition
-X1	Company ID ∈ exclusion list (see Appendix A)
-X2	Mobile app traffic
-X3	Offline / agent-assisted flows
-X4	Unsupported POS
-X5	Feature parity gaps or regulatory constraints
-4. Preview Mode vs Experimentation
+Question: How will analytics track such users, and is this restriction still required?
 
-Previously, Next-Gen UI exposure was controlled via manual preview enablement (~6% traffic), which limited:
+Ask from Analytics: Please confirm:
 
-Conversion analysis
+Whether excluding TUID users affects experiment attribution
 
-Statistical confidence
+Whether this rule can be removed without impacting data correctness
 
-Controlled cohort comparisons
+Q4. UITK Agency App Preview Enabled Config
 
-This experiment replaces preview-driven exposure with deterministic experimentation while preserving preview for:
+Observation: There exists a UITK Agency App preview config that forces FNG enablement.
 
-Internal validation
+Question: Should experiment routing override this preview config, or should preview continue to take precedence for those users?
 
-Debugging
+Recommendation: Experiment should take precedence to preserve clean cohorting, but confirmation required.
 
-Targeted demos
+6. Testing & Overrides (Engineering / QA Use)
+Forced Bucket Override for Validation
 
-Preview logic will not override experiment bucketing.
+Requirement: Ability to force a user/session/company into a specific variant for testing.
 
-5. A/A Test Setup (Validation Phase)
+Proposal:
 
-Before starting A/B, an A/A test will be run to validate:
+Support override via:
 
-Bucketing correctness
+Request header
 
-Routing determinism
+Query param
 
-Metric parity
+Internal config toggle
 
-Observability pipeline correctness
+This override should:
 
-Configuration
-Parameter	Value
-Variants	A1 = Legacy UI, A2 = Legacy UI
-Split	50 / 50
-Stripe	companyId (fallback: userId)
-Eligibility	Same as Section 2
-Exclusions	Same as Section 3
-Exit Criteria
+Bypass bucketing
 
-No statistically significant difference in conversion, latency, or error rates
+Respect hard exclusion rules
 
-No routing inconsistencies observed
+Be disabled in production-facing flows
 
-6. A/B Test Setup (Post A/A Validation)
+7. Monitoring & Rollback (Optional)
 
-Once A/A is validated, the experiment will transition to A/B:
+Metrics tracked: conversion rate, error rate, latency
 
-Parameter	Value
-Control	Legacy UI
-Treatment	Next-Gen UI
-Initial Split	95 / 5
-Ramp Plan	95/5 → 75/25 → 50/50
-Stripe	companyId (fallback: userId)
-Eligibility	Same as Section 2
-Exclusions	Same as Section 3
-7. Operational Behavior
-
-Bucketing happens before UI rendering.
-
-Users remain sticky to their assigned variant.
-
-Preview enablement does not override experiment routing.
-
-Excluded requests are always routed to Legacy UI.
-
-8. Monitoring & Rollback
-Monitored Signals
-
-Conversion rate
-
-Error rate (5xx / UI failures)
-
-Search latency (P95)
-
-Rollback Conditions
-Trigger	Action
-Error rate regression	Force 100% to Control
-Latency degradation	Pause experiment
-Business KPI drop	Roll back
-
-Rollback is executed by disabling the experiment flag in the experimentation UI.
-
-9. Ownership
-Role	Owner
-Experiment Setup	Angad
-Product Approval	
-QA Validation	
-On-call	Flight Shopping Platform
+Rollback: Disable experiment config to route 100% traffic to control
